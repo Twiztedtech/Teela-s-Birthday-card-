@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidWish(data) {
+      return data.keys().hasAll(['name', 'message', 'createdAt']) 
+        && data.keys().size() >= 3
+        && data.keys().size() <= 4
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.message is string && data.message.size() > 0 && data.message.size() <= 1000
+        && (!data.keys().contains('photoBase64') || (data.photoBase64 is string && data.photoBase64.size() <= 800000))
+        && data.createdAt == request.time;
+    }
+
+    match /wishes/{wishId} {
+      // Allow anyone to read the wishes
+      allow list: if true;
+      allow get: if true;
+      
+      // Allow anyone to submit a wish, but with strict validation
+      allow create: if isValidWish(incoming());
+      
+      // No updates or deletes allowed from the client
+      allow update, delete: if false;
+    }
+  }
+}

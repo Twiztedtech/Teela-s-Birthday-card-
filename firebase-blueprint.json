@@ -1,0 +1,35 @@
+{
+  "entities": {
+    "Wish": {
+      "title": "Guest Wish",
+      "description": "A birthday message from a guest",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the guest"
+        },
+        "message": {
+          "type": "string",
+          "description": "The birthday message"
+        },
+        "photoBase64": {
+          "type": "string",
+          "description": "Optional photo attached to the wish (data URL)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the wish was submitted"
+        }
+      },
+      "required": ["name", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "wishes": {
+      "schema": "Wish",
+      "description": "Collection of birthday wishes from guests"
+    }
+  }
+}

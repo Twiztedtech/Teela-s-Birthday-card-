@@ -3,9 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Stars, ChevronRight, ChevronLeft, Volume2, VolumeX } from 'lucide-react';
+import { Heart, Stars, ChevronRight, ChevronLeft, Volume2, VolumeX, Send, User, MessageSquareHeart, Camera, X } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // Design Constants
 const THEME = {
@@ -52,12 +59,15 @@ export default function App() {
   const [isOpen, setIsOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMusic, setCurrentMusic] = useState(MUSIC_OPTIONS[0]);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [showMusicMenu, setShowMusicMenu] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const nextPage = () => setPage((prev) => (prev + 1) % 4);
-  const prevPage = () => setPage((prev) => (prev - 1 + 4) % 4);
+  const totalPages = 5;
+
+  const nextPage = () => setPage((prev) => (prev + 1) % totalPages);
+  const prevPage = () => setPage((prev) => (prev - 1 + totalPages) % totalPages);
 
   const toggleMusic = () => {
     if (audioRef.current) {
@@ -167,6 +177,10 @@ export default function App() {
                     To Teela
                   </h1>
                 </div>
+                <div 
+                  className="z-50 absolute inset-0 cursor-zoom-in"
+                  onClick={() => setZoomedImage(PHOTOS[1])}
+                />
               </motion.div>
               <motion.div 
                 animate={{ scale: [1, 1.1, 1] }}
@@ -206,10 +220,10 @@ export default function App() {
                 <ChevronLeft size={14} /> Back
               </button>
               <div className="flex gap-2 text-[10px] tracking-widest uppercase opacity-40">
-                Page {page + 1} of 4
+                Page {page + 1} of {totalPages}
               </div>
               <div className="flex gap-2">
-                {[0, 1, 2, 3].map((i) => (
+                {[...Array(totalPages)].map((_, i) => (
                   <div 
                     key={i} 
                     className={`w-2 h-2 rounded-full transition-colors ${page === i ? 'bg-[#D4AF37]' : 'bg-gray-300'}`}
@@ -228,10 +242,11 @@ export default function App() {
                   transition={{ duration: 0.5, ease: "anticipate" }}
                   className="absolute inset-0 flex flex-col"
                 >
-                  {page === 0 && <PageOne />}
-                  {page === 1 && <PageTwo />}
-                  {page === 2 && <PageThree />}
-                  {page === 3 && <PageFour />}
+                  {page === 0 && <PageOne onZoom={setZoomedImage} />}
+                  {page === 1 && <PageTwo onZoom={setZoomedImage} />}
+                  {page === 2 && <PageThree onZoom={setZoomedImage} />}
+                  {page === 3 && <PageFour onZoom={setZoomedImage} />}
+                  {page === 4 && <Guestbook onZoom={setZoomedImage} />}
                 </motion.div>
               </AnimatePresence>
               
@@ -343,17 +358,52 @@ export default function App() {
       <footer className="fixed bottom-4 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.2em] opacity-40">
         Created for Teela with love
       </footer>
+
+      {/* Lightbox Overlay */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setZoomedImage(null)}
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-5xl w-full max-h-[90vh] flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img 
+                src={zoomedImage} 
+                alt="Enlarged view" 
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+              <button
+                onClick={() => setZoomedImage(null)}
+                className="absolute -top-12 right-0 text-white hover:text-[#D4AF37] transition-colors p-2"
+              >
+                <X size={32} />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function PageOne() {
+function PageOne({ onZoom }: { onZoom: (url: string) => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-white to-[#FDFCF6]">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="mb-8"
+        className="mb-8 cursor-zoom-in"
+        onClick={() => onZoom(PHOTOS[0])}
       >
         <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border-4 border-[#D4AF37] p-2 bg-white card-shadow">
           <img 
@@ -375,7 +425,7 @@ function PageOne() {
   );
 }
 
-function PageTwo() {
+function PageTwo({ onZoom }: { onZoom: (url: string) => void }) {
   return (
     <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-8">
       <div className="grid grid-cols-2 sm:grid-cols-1 sm:grid-rows-2 gap-4">
@@ -383,7 +433,8 @@ function PageTwo() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50"
+          className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50 cursor-zoom-in"
+          onClick={() => onZoom(PHOTOS[2])}
         >
           <img src={PHOTOS[2]} alt="The Legacy" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
         </motion.div>
@@ -391,7 +442,8 @@ function PageTwo() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50"
+          className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50 cursor-zoom-in"
+          onClick={() => onZoom(PHOTOS[0])}
         >
           <img src={PHOTOS[0]} alt="The Photos" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
         </motion.div>
@@ -413,7 +465,7 @@ function PageTwo() {
   );
 }
 
-function PageThree() {
+function PageThree({ onZoom }: { onZoom: (url: string) => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center relative overflow-y-auto">
        <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none">
@@ -447,7 +499,7 @@ function PageThree() {
   );
 }
 
-function PageFour() {
+function PageFour({ onZoom }: { onZoom: (url: string) => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#1a1a1a] text-white overflow-hidden relative">
       <motion.div 
@@ -457,9 +509,8 @@ function PageFour() {
       >
         <Heart size={400} className="text-white opacity-10" />
       </motion.div>
-
       <div className="z-10 space-y-8">
-        <div className="relative inline-block">
+        <div className="relative inline-block cursor-zoom-in" onClick={() => onZoom(PHOTOS[3])}>
           <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-2xl overflow-hidden border-4 border-white/20 bg-gray-800 card-shadow">
             <img src={PHOTOS[3]} alt="Family Collage" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
           </div>
@@ -478,6 +529,262 @@ function PageFour() {
             Long Life & Happiness
           </h2>
           <p className="text-lg italic opacity-80">May this new chapter be your best yet.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface Wish {
+  id: string;
+  name: string;
+  message: string;
+  photoBase64?: string;
+  createdAt: Timestamp;
+}
+
+function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
+  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Image compression helper
+  const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Photo is too large. Please select a smaller image.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Convert to highly compressed JPEG to save space in Firestore
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        setPhoto(dataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  useEffect(() => {
+    const q = query(collection(db, 'wishes'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Wish[];
+      setWishes(docs);
+    }, (err) => {
+      console.error("Firestore List Error:", err);
+      const errInfo = {
+        error: err.message,
+        operationType: 'list',
+        path: 'wishes',
+        authInfo: { userId: null }
+      };
+      console.error('Firestore Error: ', JSON.stringify(errInfo));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !message.trim()) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const wishData: any = {
+        name: name.trim(),
+        message: message.trim(),
+        createdAt: serverTimestamp()
+      };
+      if (photo) wishData.photoBase64 = photo;
+
+      await addDoc(collection(db, 'wishes'), wishData);
+      setName('');
+      setMessage('');
+      setPhoto(null);
+    } catch (err) {
+      console.error("Firestore Write Error:", err);
+      setError("Failed to send wish. Please try again.");
+      const errInfo = {
+        error: err instanceof Error ? err.message : String(err),
+        operationType: 'create',
+        path: 'wishes',
+        authInfo: { userId: null }
+      };
+      console.error('Firestore Error: ', JSON.stringify(errInfo));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
+      <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <MessageSquareHeart className="text-[#D4AF37]" size={24} />
+          <h2 style={{ fontFamily: THEME.display }} className="text-2xl text-gray-800">Family Guestbook</h2>
+        </div>
+        <p className="text-center text-[10px] uppercase tracking-widest text-[#D4AF37] opacity-60 font-medium">Public Wishes for Teela's 51st</p>
+      </div>
+
+      <div className="flex-1 flex flex-col sm:flex-row overflow-hidden">
+        {/* Form Section */}
+        <div className="w-full sm:w-1/2 p-6 border-b sm:border-b-0 sm:border-r border-gray-100 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-[#D4AF37] font-bold mb-1">Your Name</label>
+              <div className="relative">
+                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ex: Grandpa Mike"
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] outline-none transition-all text-sm"
+                  maxLength={50}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-[#D4AF37] font-bold mb-1">Photo (Optional)</label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-gray-300 text-gray-500 hover:border-[#D4AF37] hover:text-[#D4AF37] transition-all text-xs cursor-pointer"
+                >
+                  <Camera size={14} />
+                  {photo ? 'Change Photo' : 'Attach Photo'}
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handlePhotoChange} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+                
+                {photo && (
+                  <div className="relative group">
+                    <img src={photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg border border-gray-200" />
+                    <button 
+                      type="button"
+                      onClick={() => setPhoto(null)}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-[#D4AF37] font-bold mb-1">Birthday Wish</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Share a memory or a prayer..."
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] outline-none transition-all text-sm h-24 resize-none"
+                maxLength={500}
+                required
+              />
+            </div>
+            {error && <p className="text-red-500 text-xs italic">{error}</p>}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              disabled={isSubmitting}
+              type="submit"
+              className="w-full py-3 bg-[#D4AF37] text-white rounded-xl font-bold tracking-widest uppercase text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#D4AF37]/20 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Sending...' : 'Post Wish'}
+              <Send size={14} />
+            </motion.button>
+          </form>
+        </div>
+
+        {/* List Section */}
+        <div className="w-full sm:w-1/2 p-6 overflow-y-auto bg-gray-50/30">
+          <AnimatePresence mode="popLayout">
+            {wishes.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-center opacity-40 italic py-12">
+                <p>No wishes yet. <br /> Be the first to say happy birthday!</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {wishes.map((wish) => (
+                  <motion.div
+                    key={wish.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-6 h-6 rounded-full bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] text-[10px] uppercase font-bold">
+                        {wish.name.charAt(0)}
+                      </div>
+                      <span className="text-xs font-bold text-gray-800 tracking-tight">{wish.name}</span>
+                    </div>
+                    
+                    {wish.photoBase64 && (
+                      <div 
+                        className="mb-3 rounded-lg overflow-hidden border border-gray-50 cursor-zoom-in"
+                        onClick={() => onZoom(wish.photoBase64!)}
+                      >
+                        <img 
+                          src={wish.photoBase64} 
+                          alt={`From ${wish.name}`} 
+                          className="w-full max-h-48 object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
+                    
+                    <p className="text-sm text-gray-600 leading-relaxed italic">"{wish.message}"</p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
