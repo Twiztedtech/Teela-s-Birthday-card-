@@ -814,5 +814,3 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
     </div>
   );
 }
-
-
