@@ -599,6 +599,7 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
   };
 
   useEffect(() => {
+    if (!db) return;
     const q = query(collection(db, 'wishes'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
@@ -606,8 +607,10 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
         ...doc.data()
       })) as Wish[];
       setWishes(docs);
+      setError(null);
     }, (err) => {
       console.error("Firestore List Error:", err);
+      setError("Wishes list could not be loaded.");
       const errInfo = {
         error: err.message,
         operationType: 'list',
@@ -632,15 +635,33 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
         message: message.trim(),
         createdAt: serverTimestamp()
       };
-      if (photo) wishData.photoBase64 = photo;
+      
+      if (photo) {
+        // Pre-validate base64 size against 1MB Firestore limit (~1,333,333 chars)
+        // and my specific rule limit (950,000 chars)
+        if (photo.length > 950000) {
+          throw new Error("The photo is too large after processing. Please try a smaller photo.");
+        }
+        wishData.photoBase64 = photo;
+      }
 
       await addDoc(collection(db, 'wishes'), wishData);
       setName('');
       setMessage('');
       setPhoto(null);
-    } catch (err) {
+      setError(null);
+    } catch (err: any) {
       console.error("Firestore Write Error:", err);
-      setError("Failed to send wish. Please try again.");
+      
+      // Provide more helpful error messages
+      if (err.message?.includes('permission-denied')) {
+        setError("Post failed: Validation error. Ensure your name and message are provided.");
+      } else if (err.message?.includes('too large')) {
+        setError(err.message);
+      } else {
+        setError("Failed to send wish. Please try again or use a smaller photo.");
+      }
+
       const errInfo = {
         error: err instanceof Error ? err.message : String(err),
         operationType: 'create',

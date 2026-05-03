@@ -25,8 +25,8 @@ service cloud.firestore {
         && data.keys().size() <= 4
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.message is string && data.message.size() > 0 && data.message.size() <= 1000
-        && (!data.keys().contains('photoBase64') || (data.photoBase64 is string && data.photoBase64.size() <= 800000))
-        && data.createdAt == request.time;
+        && (!data.keys().contains('photoBase64') || (data.photoBase64 is string && data.photoBase64.size() <= 950000))
+        && data.createdAt is timestamp;
     }
 
     match /wishes/{wishId} {
