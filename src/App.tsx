@@ -567,8 +567,8 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
+        const MAX_WIDTH = 600;
+        const MAX_HEIGHT = 600;
         let width = img.width;
         let height = img.height;
 
@@ -639,7 +639,7 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
       if (photo) {
         // Pre-validate base64 size against 1MB Firestore limit (~1,333,333 chars)
         // and my specific rule limit (950,000 chars)
-        if (photo.length > 950000) {
+        if (photo.length > 990000) {
           throw new Error("The photo is too large after processing. Please try a smaller photo.");
         }
         wishData.photoBase64 = photo;
@@ -654,12 +654,15 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
       console.error("Firestore Write Error:", err);
       
       // Provide more helpful error messages
-      if (err.message?.includes('permission-denied')) {
-        setError("Post failed: Validation error. Ensure your name and message are provided.");
-      } else if (err.message?.includes('too large')) {
-        setError(err.message);
+      const errorMessage = err.message || "";
+      if (errorMessage.includes('permission-denied')) {
+        setError("Post failed: Validation error. Please ensure you filled all fields correctly.");
+      } else if (errorMessage.includes('too large')) {
+        setError(errorMessage);
+      } else if (err.code === 'resource-exhausted') {
+        setError("Posts are currently unavailable due to high traffic (Quota exceeded).");
       } else {
-        setError("Failed to send wish. Please try again or use a smaller photo.");
+        setError(`Error: ${err.code || 'Failed to send'}. Please try again.`);
       }
 
       const errInfo = {
