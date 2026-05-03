@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Stars, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Heart, Stars, ChevronRight, ChevronLeft, Volume2, VolumeX } from 'lucide-react';
 
 // Design Constants
 const THEME = {
@@ -16,25 +16,114 @@ const THEME = {
   display: "'Playfair Display', serif"
 };
 
+/**
+ * PHOTO MAPPING:
+ * These point to the images you uploaded. 
+ * Change the order here to change where they appear in the card!
+ */
 const PHOTOS = [
-  'input_file_0.png',
-  'input_file_1.png',
-  'input_file_2.png',
-  'input_file_3.png'
+  'https://res.cloudinary.com/savvyone/image/upload/v1777833624/C1CC7B7B-CC49-4C88-9B9E-00C65E5C5868_jhqpyz.jpg', 
+  'https://res.cloudinary.com/savvyone/image/upload/v1777833624/IMG_20241008_165930_mwfcyn.jpg', 
+  'https://res.cloudinary.com/savvyone/image/upload/v1777833624/IMG_0558_pftnl4.jpg', 
+  'https://res.cloudinary.com/savvyone/image/upload/v1777833624/IMG_3386_kn2w7y.jpg'  
+];
+
+// High-quality, soulful background music options from reliable sources
+const MUSIC_OPTIONS = [
+  { 
+    name: 'Slow_Cozy', 
+    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835309/Slow_Cozy_Lo-Fi_Romantic_Hip-Hop_vitsif.wav'
+  },
+  { 
+    name: 'A Valentines Blues', 
+    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835549/A_Valentines_Blues_i6qyuu.wav'
+  },
+  { 
+    name: 'Uplifting Thoughts', 
+    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835690/Uplifting_Thoughts_it2okm.wav'
+  }
 ];
 
 export default function App() {
   const [page, setPage] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentMusic, setCurrentMusic] = useState(MUSIC_OPTIONS[0]);
+  const [showMusicMenu, setShowMusicMenu] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const nextPage = () => setPage((prev) => (prev + 1) % 4);
   const prevPage = () => setPage((prev) => (prev - 1 + 4) % 4);
+
+  const toggleMusic = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        setAudioError(null);
+        audioRef.current.play().then(() => {
+          setIsPlaying(true);
+        }).catch(e => {
+          console.error("Playback failed:", e);
+          // Only show error if it's not a user interaction issue
+          if (e.name !== 'NotAllowedError') {
+            setAudioError("Playback failed. Try again.");
+          }
+        });
+      }
+    }
+  };
+
+  const changeMusic = (option: typeof MUSIC_OPTIONS[0]) => {
+    setAudioError(null);
+    setCurrentMusic(option);
+    setShowMusicMenu(false);
+    
+    // Ensure the audio element reloads with the new source
+    if (audioRef.current) {
+      audioRef.current.load();
+      // If it was already playing, try to play the new one
+      if (isPlaying) {
+        setTimeout(() => {
+          audioRef.current?.play().catch(e => {
+            console.error("Change playback failed:", e);
+            setIsPlaying(false);
+          });
+        }, 100);
+      }
+    }
+  };
+
+  // Start music when card is opened
+  useEffect(() => {
+    if (isOpen && audioRef.current && !isPlaying) {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        console.log("Autoplay blocked");
+      });
+    }
+  }, [isOpen]);
 
   return (
     <div 
       className="min-h-screen flex items-center justify-center p-4 sm:p-8"
       style={{ backgroundColor: THEME.bg, color: THEME.text, fontFamily: THEME.serif }}
     >
+      <audio 
+        ref={audioRef} 
+        src={currentMusic.url} 
+        loop 
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onError={(e) => {
+          console.error("Audio Load Error:", e);
+          setAudioError("Unable to load track.");
+          setIsPlaying(false);
+        }}
+      />
       {/* Font Imports */}
       <style>
         {`
@@ -64,13 +153,14 @@ export default function App() {
                 className="w-48 h-64 sm:w-64 sm:h-80 bg-white rounded-lg card-shadow gold-border flex items-center justify-center p-4 relative overflow-hidden"
               >
                 <img 
-                  src={PHOTOS[2]} 
+                  src={PHOTOS[1]} 
                   alt="Teela and Family" 
+                  referrerPolicy="no-referrer"
                   className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale"
                 />
                 <div className="z-10 flex flex-col items-center">
                   <Stars className="text-[#D4AF37] mb-2" size={32} />
-                  <h1 style={{ fontFamily: THEME.display }} className="text-3xl font-bold italic">
+                  <h1 style={{ fontFamily: THEME.display }} className="text-3xl font-bold italic text-gray-800">
                     To Teela
                   </h1>
                 </div>
@@ -88,7 +178,7 @@ export default function App() {
               <h2 style={{ fontFamily: THEME.display }} className="text-2xl sm:text-4xl text-[#D4AF37] tracking-wider uppercase">
                 A Special Birthday Message
               </h2>
-              <p className="text-xl italic opacity-70">From the heart of the family</p>
+              <p className="text-xl italic opacity-70">Celebrating the mother of our children</p>
             </div>
 
             <motion.button
@@ -112,6 +202,9 @@ export default function App() {
               >
                 <ChevronLeft size={14} /> Back
               </button>
+              <div className="flex gap-2 text-[10px] tracking-widest uppercase opacity-40">
+                Page {page + 1} of 4
+              </div>
               <div className="flex gap-2">
                 {[0, 1, 2, 3].map((i) => (
                   <div 
@@ -154,11 +247,97 @@ export default function App() {
                 <ChevronRight size={24} />
               </button>
             </div>
+            
+            <p className="mt-4 text-center text-xs opacity-50 italic">
+              Click the arrows to flip through the pages
+            </p>
           </div>
         )}
       </div>
 
-      <footer className="fixed bottom-4 text-[10px] uppercase tracking-[0.2em] opacity-40">
+      {/* Music Control - Floating */}
+      <div className="fixed bottom-8 right-8 flex flex-col items-end gap-3 z-50">
+        <AnimatePresence>
+          {showMusicMenu && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+              className="bg-white border border-gray-100 rounded-2xl p-2 card-shadow flex flex-col gap-1 mb-2"
+            >
+              {MUSIC_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => changeMusic(option)}
+                  className={`px-4 py-2 rounded-xl text-xs uppercase tracking-widest text-left transition-colors cursor-pointer whitespace-nowrap ${currentMusic.id === option.id ? 'bg-[#D4AF37] text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+                >
+                  {option.name}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex flex-col items-end gap-2">
+          <AnimatePresence>
+            {audioError && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-md uppercase tracking-tighter mb-1"
+              >
+                {audioError}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <div className="flex gap-2">
+            <motion.button
+              id="music-menu-toggle"
+              onClick={() => setShowMusicMenu(!showMusicMenu)}
+              className={`p-3 rounded-full shadow-lg flex items-center justify-center transition-all bg-white text-gray-400 border border-gray-200 hover:text-[#D4AF37] cursor-pointer`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <Stars size={20} className={showMusicMenu ? 'text-[#D4AF37]' : ''} />
+            </motion.button>
+
+            <motion.button
+              id="music-toggle"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={toggleMusic}
+              className={`p-3 rounded-full shadow-lg flex items-center justify-center transition-all ${isPlaying ? 'bg-[#D4AF37] text-white' : 'bg-white text-gray-400 border border-gray-200'} cursor-pointer`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <AnimatePresence mode="wait">
+                {isPlaying ? (
+                  <motion.div
+                    key="playing"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <Volume2 size={24} className="animate-pulse" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="paused"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <VolumeX size={24} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          </div>
+        </div>
+      </div>
+
+      <footer className="fixed bottom-4 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.2em] opacity-40">
         Created for Teela with love
       </footer>
     </div>
@@ -173,8 +352,13 @@ function PageOne() {
         animate={{ scale: 1, opacity: 1 }}
         className="mb-8"
       >
-        <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border-4 border-[#D4AF37] p-2">
-          <img src={PHOTOS[0]} alt="Youthful Days" className="w-full h-full object-cover rounded-full" />
+        <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border-4 border-[#D4AF37] p-2 bg-white card-shadow">
+          <img 
+            src={PHOTOS[0]} 
+            alt="Celebrating You" 
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-cover rounded-full" 
+          />
         </div>
       </motion.div>
       <h1 style={{ fontFamily: THEME.display }} className="text-5xl sm:text-7xl mb-4 font-black text-gray-800">
@@ -196,17 +380,17 @@ function PageTwo() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="rounded-xl overflow-hidden border border-gray-100"
+          className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50"
         >
-          <img src={PHOTOS[3]} alt="Collage Photo 1" className="w-full h-full object-cover" />
+          <img src={PHOTOS[2]} alt="The Legacy" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
         </motion.div>
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="rounded-xl overflow-hidden border border-gray-100"
+          className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50"
         >
-          <img src={PHOTOS[1]} alt="Collage Photo 2" className="w-full h-full object-cover" />
+          <img src={PHOTOS[0]} alt="The Photos" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
         </motion.div>
       </div>
       <div className="flex flex-col justify-center space-y-6">
@@ -218,7 +402,7 @@ function PageTwo() {
         <p className="text-lg opacity-80 leading-relaxed">
           Through the years, the greatest joy has been seeing you bloom as a mother and now, an incredible grandmother. 
         </p>
-        <p className="text-lg opacity-80 italic">
+        <p className="text-lg opacity-80 italic border-l-2 border-[#D4AF37] pl-4 py-2 bg-gray-50/50">
           "A grandmother's love is a forever tie that bonds generations."
         </p>
       </div>
@@ -238,7 +422,7 @@ function PageThree() {
            From My Heart
          </h4>
          
-         <div className="space-y-4 text-xl sm:text-2xl leading-relaxed text-gray-700">
+         <div className="space-y-6 text-xl sm:text-2xl leading-relaxed text-gray-700 italic">
            <p>
              On your 51st birthday, we celebrate the incredible woman you are. 
            </p>
@@ -252,7 +436,7 @@ function PageThree() {
          
          <div className="pt-8">
            <p className="text-[#D4AF37] font-bold text-2xl" style={{ fontFamily: THEME.display }}>
-             Happy Birthday!
+             Happy Birthday, Teela!
            </p>
          </div>
        </div>
@@ -273,11 +457,13 @@ function PageFour() {
 
       <div className="z-10 space-y-8">
         <div className="relative inline-block">
-          <img src={PHOTOS[2]} alt="Final Photo" className="w-48 h-48 sm:w-64 sm:h-64 object-cover rounded-2xl border-4 border-white/20" />
+          <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-2xl overflow-hidden border-4 border-white/20 bg-gray-800 card-shadow">
+            <img src={PHOTOS[3]} alt="Family Collage" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+          </div>
           <motion.div 
              animate={{ rotate: 360 }}
              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-             className="absolute -bottom-4 -right-4 bg-white p-2 rounded-full text-[#1a1a1a]"
+             className="absolute -bottom-4 -right-4 bg-[#D4AF37] p-2 rounded-full text-white"
           >
             <Stars size={24} />
           </motion.div>
@@ -294,4 +480,5 @@ function PageFour() {
     </div>
   );
 }
+
 
