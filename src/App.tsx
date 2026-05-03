@@ -32,15 +32,18 @@ const PHOTOS = [
 const MUSIC_OPTIONS = [
   { 
     name: 'Slow_Cozy', 
-    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835309/Slow_Cozy_Lo-Fi_Romantic_Hip-Hop_vitsif.wav'
+    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835309/Slow_Cozy_Lo-Fi_Romantic_Hip-Hop_vitsif.wav',
+    id: 'slow-cozy'
   },
   { 
     name: 'A Valentines Blues', 
-    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835549/A_Valentines_Blues_i6qyuu.wav'
+    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835549/A_Valentines_Blues_i6qyuu.wav',
+    id: 'valentines'
   },
   { 
     name: 'Uplifting Thoughts', 
-    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835690/Uplifting_Thoughts_it2okm.wav'
+    url: 'https://res.cloudinary.com/savvyone/video/upload/v1777835690/Uplifting_Thoughts_it2okm.wav',
+    id: 'uplifting'
   }
 ];
 
