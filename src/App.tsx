@@ -872,7 +872,14 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
                         <div className="w-7 h-7 rounded-full bg-[#D4AF37] flex items-center justify-center text-white text-[10px] font-black shadow-sm">
                           {wish.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-xs font-bold text-gray-800 tracking-tight">{wish.name}</span>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-gray-800 tracking-tight">{wish.name}</span>
+                          {wish.createdAt && (
+                            <span className="text-[9px] text-gray-400 uppercase tracking-wider">
+                              Posted on {wish.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <Stars className="text-[#D4AF37]/20" size={14} />
                     </div>
