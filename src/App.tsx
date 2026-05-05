@@ -552,6 +552,41 @@ interface Wish {
   createdAt: Timestamp;
 }
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+  }
+}
+
+function handleFirestoreError(error: any, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error?.message || String(error),
+    authInfo: {
+      userId: null, // Client-guest app, no auth instance here for now
+      email: null,
+      emailVerified: null,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw error;
+}
+
 function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [name, setName] = useState('');
@@ -645,6 +680,7 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
         let friendlyError = "Wishes list could not be loaded.";
         if (err.message?.includes('permission-denied')) {
           friendlyError = "Access restricted. Please try again later.";
+          handleFirestoreError(err, OperationType.LIST, 'wishes');
         } else if (err.code === 'resource-exhausted') {
           friendlyError = "High traffic. Quota exceeded.";
         }
@@ -658,15 +694,21 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !message.trim()) return;
+    const trimmedName = name.trim();
+    const trimmedMessage = message.trim();
+    
+    if (!trimmedName || !trimmedMessage) {
+       setError("Please fill in both name and message.");
+       return;
+    }
 
     setIsSubmitting(true);
     setError(null);
 
     try {
       const wishData: any = {
-        name: name.trim(),
-        message: message.trim(),
+        name: trimmedName,
+        message: trimmedMessage,
         createdAt: serverTimestamp()
       };
       
@@ -677,14 +719,20 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
         wishData.photoBase64 = photo;
       }
 
+      console.log("Submitting wish:", { ...wishData, photoBase64: photo ? "exists" : "none" });
       await addDoc(collection(db, 'wishes'), wishData);
+      console.log("Wish submitted successfully");
+      
       setName('');
       setMessage('');
       setPhoto(null);
     } catch (err: any) {
+      console.error("Submission error:", err);
       const errorMessage = err.message || "";
+      
       if (errorMessage.includes('permission-denied')) {
         setError("Validation failed. Check your message length.");
+        handleFirestoreError(err, OperationType.CREATE, 'wishes');
       } else if (err.code === 'resource-exhausted') {
         setError("Posts are full for today.");
       } else {
