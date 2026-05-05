@@ -21,11 +21,9 @@ service cloud.firestore {
 
     function isValidWish(data) {
       return data.keys().hasAll(['name', 'message', 'createdAt']) 
-        && data.keys().size() >= 3
-        && data.keys().size() <= 4
-        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
-        && data.message is string && data.message.size() > 0 && data.message.size() <= 1000
-        && (!data.keys().contains('photoBase64') || (data.photoBase64 is string && data.photoBase64.size() <= 990000))
+        && data.name is string && data.name.size() > 0
+        && data.message is string && data.message.size() > 0
+        && (!('photoBase64' in data) || (data.photoBase64 is string && data.photoBase64.size() <= 1000000))
         && data.createdAt == request.time;
     }
 

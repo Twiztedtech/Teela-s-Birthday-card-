@@ -593,6 +593,7 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
   const [message, setMessage] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -704,6 +705,7 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
 
     setIsSubmitting(true);
     setError(null);
+    setShowSuccess(false);
 
     try {
       const wishData: any = {
@@ -719,24 +721,28 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
         wishData.photoBase64 = photo;
       }
 
-      console.log("Submitting wish:", { ...wishData, photoBase64: photo ? "exists" : "none" });
-      await addDoc(collection(db, 'wishes'), wishData);
-      console.log("Wish submitted successfully");
+      console.log("Submitting wish to Firestore...", { name: trimmedName, msgLen: trimmedMessage.length });
+      const docRef = await addDoc(collection(db, 'wishes'), wishData);
+      console.log("Wish submitted successfully! ID:", docRef.id);
       
       setName('');
       setMessage('');
       setPhoto(null);
+      setShowSuccess(true);
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => setShowSuccess(false), 5000);
     } catch (err: any) {
-      console.error("Submission error:", err);
+      console.error("Submission error detected:", err);
       const errorMessage = err.message || "";
       
       if (errorMessage.includes('permission-denied')) {
-        setError("Validation failed. Check your message length.");
+        setError("Security rules blocked the post. Please ensure the message isn't too long.");
         handleFirestoreError(err, OperationType.CREATE, 'wishes');
       } else if (err.code === 'resource-exhausted') {
-        setError("Posts are full for today.");
+        setError("The database has reached its limit for today.");
       } else {
-        setError(`Error: ${err.code || 'Unable to post'}`);
+        setError(`System Error: ${err.code || err.message || 'Submission failed'}`);
       }
     } finally {
       setIsSubmitting(false);
@@ -820,8 +826,14 @@ function Guestbook({ onZoom }: { onZoom: (url: string) => void }) {
             </div>
             
             {error && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-2 rounded-lg bg-red-50 text-red-500 text-[10px] font-bold uppercase text-center tracking-tight border border-red-100">
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-lg bg-red-50 text-red-600 text-xs font-bold text-center border border-red-100">
                 {error}
+              </motion.div>
+            )}
+
+            {showSuccess && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-lg bg-green-50 text-green-600 text-xs font-bold text-center border border-green-100">
+                ✓ Wish posted successfully!
               </motion.div>
             )}
 
